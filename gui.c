@@ -102,12 +102,20 @@
 
 static void create_connection_dialog (struct config *);
 static void create_conversion_dialog (struct config *);
+static void create_local_conversion_dialog (struct config *);
+static void create_choose_mode_dialog (struct config *);
 static void create_running_dialog (void);
 static void show_connection_dialog (void);
 static void show_conversion_dialog (void);
+static void show_local_conversion_dialog (void);
 static void show_running_dialog (void);
 
+static void show_choose_mode_dialog (void);
+
 static void set_info_label (void);
+
+/* The conversion dialog. */
+static GtkWidget *mode_dlg, *hbox, *remote_button, *local_button, *shutdown_button;
 
 /* The connection dialog. */
 static GtkWidget *conn_dlg,
@@ -165,13 +173,120 @@ gui_conversion (struct config *config)
   create_connection_dialog (config);
   create_conversion_dialog (config);
   create_running_dialog ();
-
+  create_choose_mode_dialog (config);
+  create_local_conversion_dialog (config);
   /* Start by displaying the connection dialog. */
-  show_connection_dialog ();
+  //show_connection_dialog ();
+  show_choose_mode_dialog ();
 
   gtk_main ();
 }
 
+static void remote_button_clicked(GtkWidget *w, gpointer data)
+{
+  show_connection_dialog();
+}
+
+static void local_button_clicked(GtkWidget *w, gpointer data)
+{
+  show_local_conversion_dialog();
+}
+
+static void create_choose_mode_dialog (struct config *config)
+{
+  mode_dlg = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title (GTK_WINDOW (mode_dlg), g_get_prgname ());
+  gtk_window_set_position (GTK_WINDOW (mode_dlg), GTK_WIN_POS_CENTER);
+  gtk_container_set_border_width(GTK_CONTAINER(mode_dlg),20);
+
+
+  hbox = gtk_box_new(FALSE,0);
+  gtk_container_add(GTK_CONTAINER(mode_dlg),hbox);
+  remote_button = gtk_button_new_with_label("remote_p2v");
+  gtk_box_pack_start(GTK_BOX(hbox),remote_button,FALSE,FALSE,3);
+  local_button = gtk_button_new_with_label("local_p2v");
+  gtk_box_pack_start(GTK_BOX(hbox),local_button,FALSE,FALSE,3);
+  
+
+  g_signal_connect(G_OBJECT(mode_dlg),"destroy",
+		  G_CALLBACK(gtk_main_quit),NULL);
+  g_signal_connect(G_OBJECT(remote_button),"clicked",
+		  G_CALLBACK(remote_button_clicked),NULL);
+  g_signal_connect(G_OBJECT(local_button),"clicked",
+		  G_CALLBACK(local_button_clicked),NULL);
+}
+
+static void show_choose_mode_dialog (void)
+{
+  gtk_widget_hide(conn_dlg);
+  gtk_widget_hide(conv_dlg);
+  gtk_widget_hide(run_dlg);
+
+  gtk_widget_show_all(mode_dlg);
+
+}
+
+static GtkWidget *disk_entry, *img_name, *l_conv_dlg,
+	*l_box, *l_box1, *l_box2, *l_label1, * l_label2,
+	*l_button, *l_sep;
+
+static void l_button_clicked(GtkWidget * button, gpointer data)
+{
+  const gchar *disk = gtk_entry_get_text(GTK_ENTRY(disk_entry));
+  const gchar *name = gtk_entry_get_text(GTK_ENTRY(img_name));
+  g_print("%s\n", disk);
+  g_print("%s\n", name);
+  char cmd[1024];
+  sprintf(cmd,"qemu-img convert -p -f raw %s -O qcow2 ./%s.qcow2",disk,name);
+  system(cmd);
+}
+
+static void create_local_conversion_dialog (struct config *config)
+{
+  l_conv_dlg = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+  g_signal_connect(G_OBJECT(l_conv_dlg),"destroy",
+                  G_CALLBACK(gtk_main_quit),NULL);
+  gtk_window_set_title(GTK_WINDOW(l_conv_dlg),"local conversion");
+  gtk_window_set_position(GTK_WINDOW(l_conv_dlg),GTK_WIN_POS_CENTER);
+  gtk_container_set_border_width(GTK_CONTAINER(l_conv_dlg),20);
+
+  vbox_new(l_box,TRUE,1);
+  gtk_container_add(GTK_CONTAINER(l_conv_dlg),l_box);
+
+  hbox_new(l_box1,TRUE,1);
+  gtk_box_pack_start(GTK_BOX(l_box),l_box1,FALSE,FALSE,5);
+  hbox_new(l_box2,TRUE,1);
+  gtk_box_pack_start(GTK_BOX(l_box),l_box2,FALSE,FALSE,5);
+
+ // l_sep = gtk_hseparator_new();
+ // gtk_box_pack_start(GTK_BOX(l_box),l_sep,FALSE,FALSE,5);
+
+  l_label1 = gtk_label_new("convert disk(eg:/dev/sdx)");
+  disk_entry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(l_box1),l_label1,FALSE,FALSE,5);
+  gtk_box_pack_start(GTK_BOX(l_box1),disk_entry,FALSE,FALSE,5);
+
+  l_label2 = gtk_label_new("img name (eg:testname)");
+  img_name = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX(l_box2),l_label2,FALSE,FALSE,5);
+  gtk_box_pack_start(GTK_BOX(l_box2),img_name,FALSE,FALSE,5);
+
+  l_button = gtk_button_new_with_label("start");
+  g_signal_connect(G_OBJECT(l_button),"clicked",
+                G_CALLBACK(l_button_clicked),NULL);
+  gtk_box_pack_start(GTK_BOX(l_box),l_button,FALSE,FALSE,5);
+}
+
+static void show_local_conversion_dialog (void)
+{
+  gtk_widget_hide(conn_dlg);
+  gtk_widget_hide(conv_dlg);
+  gtk_widget_hide(run_dlg);
+  gtk_widget_hide(mode_dlg);
+
+  gtk_widget_show_all(l_conv_dlg);
+
+}
 /*----------------------------------------------------------------------*/
 /* Connection dialog. */
 
@@ -415,6 +530,7 @@ show_connection_dialog (void)
   /* Hide the other dialogs. */
   gtk_widget_hide (conv_dlg);
   gtk_widget_hide (run_dlg);
+  gtk_widget_hide (mode_dlg);
 
   /* Show everything except the spinner. */
   gtk_widget_show_all (conn_dlg);
@@ -970,6 +1086,7 @@ show_conversion_dialog (void)
   /* Hide the other dialogs. */
   gtk_widget_hide (conn_dlg);
   gtk_widget_hide (run_dlg);
+  gtk_widget_hide (mode_dlg);
 
   /* Show the conversion dialog. */
   gtk_widget_show_all (conv_dlg);
@@ -1672,7 +1789,7 @@ create_running_dialog (void)
 #else
   PangoFontDescription *font;
   font = pango_font_description_from_string ("Monospace 11");
-#if GTK_CHECK_VERSION(3,0,0)	/* gtk >= 3 */
+#if GTK_CHECK_VERSION(3,0,0)   /* gtk >= 3 */
   gtk_widget_override_font (v2v_output, font);
 #else
   gtk_widget_modify_font (v2v_output, font);
@@ -1772,6 +1889,7 @@ show_running_dialog (void)
   /* Hide the other dialogs. */
   gtk_widget_hide (conn_dlg);
   gtk_widget_hide (conv_dlg);
+  gtk_widget_hide (mode_dlg);
 
   /* Show the running dialog. */
   gtk_widget_show_all (run_dlg);
