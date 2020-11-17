@@ -114,6 +114,9 @@ static void show_choose_mode_dialog (void);
 
 static void set_info_label (void);
 
+static void populate_disks (GtkTreeView *disks_list);
+static void set_disks_from_ui (struct config *);
+
 /* The conversion dialog. */
 static GtkWidget *mode_dlg, *hbox, *remote_button, *local_button, *shutdown_button;
 
@@ -226,45 +229,55 @@ static void show_choose_mode_dialog (void)
 
 }
 
-static GtkWidget *disk_entry, *img_name, *l_conv_dlg,
-	*l_box, *l_box1, *l_box2, *l_label1, * l_label2,
-	*l_button, *l_sep;
+static GtkWidget *img_name, *l_conv_dlg,
+	*l_box, *l_box1, *l_box2, * l_label2,
+	*l_button;
 
 static void l_button_clicked(GtkWidget * button, gpointer data)
 {
-  const gchar *disk = gtk_entry_get_text(GTK_ENTRY(disk_entry));
+  show_running_dialog();
   const gchar *name = gtk_entry_get_text(GTK_ENTRY(img_name));
-  g_print("%s\n", disk);
+  struct config *config = data;
+  set_disks_from_ui(config);
+  g_print("%s\n", strdup(config->disks[0]));
   g_print("%s\n", name);
   char cmd[1024];
-  sprintf(cmd,"qemu-img convert -p -f raw %s -O qcow2 ./%s.qcow2",disk,name);
-  system(cmd);
+  sprintf(cmd,"qemu-img convert -p -f raw /dev/%s -O qcow2 ./%s.qcow2",
+		  strdup(config->disks[0]),name);
+  ignore_value(system(cmd));
 }
 
 static void create_local_conversion_dialog (struct config *config)
 {
+  GtkWidget *disks_frame, *disks_sw;
   l_conv_dlg = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   g_signal_connect(G_OBJECT(l_conv_dlg),"destroy",
                   G_CALLBACK(gtk_main_quit),NULL);
   gtk_window_set_title(GTK_WINDOW(l_conv_dlg),"local conversion");
   gtk_window_set_position(GTK_WINDOW(l_conv_dlg),GTK_WIN_POS_CENTER);
-  gtk_container_set_border_width(GTK_CONTAINER(l_conv_dlg),20);
+  gtk_widget_set_size_request(l_conv_dlg,600,600);
+  gtk_container_set_border_width(GTK_CONTAINER(l_conv_dlg),10);
 
   vbox_new(l_box,TRUE,1);
   gtk_container_add(GTK_CONTAINER(l_conv_dlg),l_box);
 
   hbox_new(l_box1,TRUE,1);
-  gtk_box_pack_start(GTK_BOX(l_box),l_box1,FALSE,FALSE,5);
+  gtk_box_pack_start(GTK_BOX(l_box),l_box1,TRUE,TRUE,5);
   hbox_new(l_box2,TRUE,1);
   gtk_box_pack_start(GTK_BOX(l_box),l_box2,FALSE,FALSE,5);
 
- // l_sep = gtk_hseparator_new();
- // gtk_box_pack_start(GTK_BOX(l_box),l_sep,FALSE,FALSE,5);
+  disks_frame = gtk_frame_new (_("Fixed hard disks"));
+  gtk_container_set_border_width (GTK_CONTAINER (disks_frame), 4);
+  disks_sw = gtk_scrolled_window_new (NULL, NULL);
+  gtk_container_set_border_width (GTK_CONTAINER (disks_sw), 8);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (disks_sw),
+                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  disks_list = gtk_tree_view_new ();
+  populate_disks (GTK_TREE_VIEW (disks_list));
+  scrolled_window_add_with_viewport (disks_sw, disks_list);
+  gtk_container_add (GTK_CONTAINER (disks_frame), disks_sw);
 
-  l_label1 = gtk_label_new("convert disk(eg:/dev/sdx)");
-  disk_entry = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(l_box1),l_label1,FALSE,FALSE,5);
-  gtk_box_pack_start(GTK_BOX(l_box1),disk_entry,FALSE,FALSE,5);
+  gtk_box_pack_start (GTK_BOX (l_box1), disks_frame, TRUE, TRUE, 5);
 
   l_label2 = gtk_label_new("img name (eg:testname)");
   img_name = gtk_entry_new();
@@ -273,7 +286,7 @@ static void create_local_conversion_dialog (struct config *config)
 
   l_button = gtk_button_new_with_label("start");
   g_signal_connect(G_OBJECT(l_button),"clicked",
-                G_CALLBACK(l_button_clicked),NULL);
+                G_CALLBACK(l_button_clicked),config);
   gtk_box_pack_start(GTK_BOX(l_box),l_button,FALSE,FALSE,5);
 }
 
@@ -795,7 +808,6 @@ static void populate_interfaces (GtkTreeView *interfaces_list);
 static void toggled (GtkCellRendererToggle *cell, gchar *path_str, gpointer data);
 static void network_edited_callback (GtkCellRendererToggle *cell, gchar *path_str, gchar *new_text, gpointer data);
 static gboolean maybe_identify_click (GtkWidget *interfaces_list, GdkEventButton *event, gpointer data);
-static void set_disks_from_ui (struct config *);
 static void set_removable_from_ui (struct config *);
 static void set_interfaces_from_ui (struct config *);
 static void conversion_back_clicked (GtkWidget *w, gpointer data);
