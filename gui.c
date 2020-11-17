@@ -235,16 +235,17 @@ static GtkWidget *img_name, *l_conv_dlg,
 
 static void l_button_clicked(GtkWidget * button, gpointer data)
 {
-  show_running_dialog();
+  //show_running_dialog();
   const gchar *name = gtk_entry_get_text(GTK_ENTRY(img_name));
   struct config *config = data;
   set_disks_from_ui(config);
-  g_print("%s\n", strdup(config->disks[0]));
-  g_print("%s\n", name);
   char cmd[1024];
-  sprintf(cmd,"qemu-img convert -p -f raw /dev/%s -O qcow2 ./%s.qcow2",
+  sprintf(cmd,"time qemu-img convert -p -f raw /dev/%s -O qcow2 ./%s.qcow2",
 		  strdup(config->disks[0]),name);
   ignore_value(system(cmd));
+  g_print("%s\n", strdup(config->disks[0]));
+  g_print("%s\n", name);
+  gtk_main_quit();
 }
 
 static void create_local_conversion_dialog (struct config *config)
@@ -255,8 +256,8 @@ static void create_local_conversion_dialog (struct config *config)
                   G_CALLBACK(gtk_main_quit),NULL);
   gtk_window_set_title(GTK_WINDOW(l_conv_dlg),"local conversion");
   gtk_window_set_position(GTK_WINDOW(l_conv_dlg),GTK_WIN_POS_CENTER);
-  gtk_widget_set_size_request(l_conv_dlg,600,600);
-  gtk_container_set_border_width(GTK_CONTAINER(l_conv_dlg),10);
+  gtk_widget_set_size_request(l_conv_dlg,200,400);
+  gtk_container_set_border_width(GTK_CONTAINER(l_conv_dlg),5);
 
   vbox_new(l_box,TRUE,1);
   gtk_container_add(GTK_CONTAINER(l_conv_dlg),l_box);
@@ -269,7 +270,7 @@ static void create_local_conversion_dialog (struct config *config)
   disks_frame = gtk_frame_new (_("Fixed hard disks"));
   gtk_container_set_border_width (GTK_CONTAINER (disks_frame), 4);
   disks_sw = gtk_scrolled_window_new (NULL, NULL);
-  gtk_container_set_border_width (GTK_CONTAINER (disks_sw), 8);
+  gtk_container_set_border_width (GTK_CONTAINER (disks_sw), 4);
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (disks_sw),
                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
   disks_list = gtk_tree_view_new ();
@@ -281,13 +282,13 @@ static void create_local_conversion_dialog (struct config *config)
 
   l_label2 = gtk_label_new("img name (eg:testname)");
   img_name = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX(l_box2),l_label2,FALSE,FALSE,5);
-  gtk_box_pack_start(GTK_BOX(l_box2),img_name,FALSE,FALSE,5);
+  gtk_box_pack_start(GTK_BOX(l_box2),l_label2,FALSE,FALSE,0);
+  gtk_box_pack_start(GTK_BOX(l_box2),img_name,FALSE,FALSE,0);
 
   l_button = gtk_button_new_with_label("start");
   g_signal_connect(G_OBJECT(l_button),"clicked",
                 G_CALLBACK(l_button_clicked),config);
-  gtk_box_pack_start(GTK_BOX(l_box),l_button,FALSE,FALSE,5);
+  gtk_box_pack_start(GTK_BOX(l_box),l_button,FALSE,FALSE,0);
 }
 
 static void show_local_conversion_dialog (void)
